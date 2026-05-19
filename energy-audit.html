@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Energy Audit">
+<meta name="theme-color" content="#ffffff">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Daily Energy Audit</title>
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Daily%20Energy%20Audit%22%2C%22short_name%22%3A%22Energy%20Audit%22%2C%22start_url%22%3A%22.%2Fenergy-audit.html%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23ffffff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon-512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22apple-touch-icon.png%22%2C%22sizes%22%3A%22180x180%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+<style>
+  :root {
+    --bg: #f8f8fa;
+    --surface: #ffffff;
+    --surface2: #ebebf0;
+    --text: #1a1a2e;
+    --text-dim: #6b6b80;
+    --up: #22c55e;
+    --up-bg: rgba(34, 197, 94, 0.1);
+    --neutral: #eab308;
+    --neutral-bg: rgba(234, 179, 8, 0.1);
+    --down: #ef4444;
+    --down-bg: rgba(239, 68, 68, 0.1);
+    --accent: #6366f1;
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) 0 0 0;
+    overscroll-behavior: none;
+  }
+
+  /* Header */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    padding: 16px 20px 0;
+  }
+
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .date-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--surface2);
+  }
+
+  .date-nav button {
+    background: var(--surface);
+    border: none;
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .date-nav button:active { background: var(--surface2); }
+
+  .date-nav .date-label {
+    font-size: 15px;
+    color: var(--text-dim);
+    flex: 1;
+    text-align: center;
+  }
+
+  .date-nav .date-label .today-badge {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Summary bar */
+  .summary-bar {
+    display: flex;
+    gap: 8px;
+    padding: 14px 20px;
+    overflow-x: auto;
+  }
+
+  .summary-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .summary-chip .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .summary-chip.up .dot { background: var(--up); }
+  .summary-chip.neutral .dot { background: var(--neutral); }
+  .summary-chip.down .dot { background: var(--down); }
+
+  /* Timeline */
+  .timeline {
+    padding: 0 20px 120px;
+  }
+
+  .slot {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .slot:active { background: rgba(0,0,0,0.03); }
+
+  .slot-time {
+    width: 54px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    padding-top: 2px;
+  }
+
+  .slot-content {
+    flex: 1;
+    min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .slot-empty {
+    font-size: 14px;
+    color: var(--text-dim);
+    opacity: 0.4;
+  }
+
+  .slot-task {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .slot-action {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  .slot-energy {
+    width: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .slot.energy-up .slot-content { border-left: 3px solid var(--up); padding-left: 10px; }
+  .slot.energy-neutral .slot-content { border-left: 3px solid var(--neutral); padding-left: 10px; }
+  .slot.energy-down .slot-content { border-left: 3px solid var(--down); padding-left: 10px; }
+  .slot:not(.energy-up):not(.energy-neutral):not(.energy-down) .slot-content { padding-left: 13px; }
+
+  /* Modal overlay */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+    max-height: 85dvh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-handle {
+    width: 36px;
+    height: 4px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .modal-time {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+
+  .modal label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  .modal label:first-of-type { margin-top: 0; }
+
+  .modal input[type="text"],
+  .modal textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid #d4d4de;
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 16px;
+    padding: 12px 14px;
+    font-family: inherit;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .modal input[type="text"]:focus,
+  .modal textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .modal textarea {
+    resize: none;
+    height: 70px;
+  }
+
+  /* Energy picker */
+  .energy-picker {
+    display: flex;
+    gap: 8px;
+  }
+
+  .energy-btn {
+    flex: 1;
+    padding: 14px 0;
+    border-radius: 12px;
+    border: 2px solid var(--surface2);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+
+  .energy-btn .energy-icon { font-size: 24px; }
+
+  .energy-btn:active { transform: scale(0.96); }
+
+  .energy-btn.selected-up { border-color: var(--up); background: var(--up-bg); }
+  .energy-btn.selected-neutral { border-color: var(--neutral); background: var(--neutral-bg); }
+  .energy-btn.selected-down { border-color: var(--down); background: var(--down-bg); }
+
+  .action-step-section {
+    display: none;
+  }
+
+  .action-step-section.visible {
+    display: block;
+  }
+
+  .action-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  /* Modal buttons */
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-save {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-cancel {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--down);
+    color: var(--down);
+    font-size: 13px;
+    padding: 10px;
+    margin-top: 10px;
+    width: 100%;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Day summary view */
+  .tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--surface2);
+    display: flex;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    z-index: 50;
+  }
+
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .tab.active { color: var(--accent); }
+  .tab .tab-icon { font-size: 22px; }
+
+  /* Summary page */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .summary-page {
+    padding: 0 20px 120px;
+  }
+
+  .summary-section {
+    margin-top: 20px;
+  }
+
+  .summary-section h3 {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .energy-bar-chart {
+    display: flex;
+    height: 140px;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bar {
+    width: 100%;
+    max-width: 60px;
+    border-radius: 6px 6px 0 0;
+    min-height: 4px;
+    transition: height 0.3s;
+  }
+
+  .bar.up { background: var(--up); }
+  .bar.neutral-bar { background: var(--neutral); }
+  .bar.down { background: var(--down); }
+
+  .bar-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  .bar-count {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .action-list {
+    list-style: none;
+  }
+
+  .action-item {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--down);
+  }
+
+  .action-item-time {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  .action-item-task {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .action-item-step {
+    font-size: 13px;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .empty-state .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Energy Audit</h1>
+  <div class="date-nav">
+    <button id="prevDay" aria-label="Previous day">‹</button>
+    <div class="date-label" id="dateLabel"></div>
+    <button id="nextDay" aria-label="Next day">›</button>
+  </div>
+</div>
+
+<!-- Timeline page -->
+<div class="page active" id="timelinePage">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<!-- Summary page -->
+<div class="page" id="summaryPage">
+  <div class="summary-page">
+    <div class="summary-section">
+      <h3>Energy breakdown</h3>
+      <div class="energy-bar-chart" id="barChart"></div>
+    </div>
+    <div class="summary-section">
+      <h3>Action steps for draining hours</h3>
+      <ul class="action-list" id="actionList"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab active" data-page="timelinePage">
+    <span class="tab-icon">☀</span>
+    Timeline
+  </button>
+  <button class="tab" data-page="summaryPage">
+    <span class="tab-icon">◐</span>
+    Summary
+  </button>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-time" id="modalTime"></div>
+
+    <label for="taskInput">What are you doing?</label>
+    <input type="text" id="taskInput" placeholder="e.g. Morning workout, email, cooking..." autocomplete="off">
+
+    <label>How's your energy?</label>
+    <div class="energy-picker" id="energyPicker">
+      <button class="energy-btn" data-energy="up">
+        <span class="energy-icon">↑</span>
+        Up
+      </button>
+      <button class="energy-btn" data-energy="neutral">
+        <span class="energy-icon">→</span>
+        Neutral
+      </button>
+      <button class="energy-btn" data-energy="down">
+        <span class="energy-icon">↓</span>
+        Down
+      </button>
+    </div>
+
+    <div class="action-step-section" id="actionStepSection">
+      <label for="actionInput">Action step</label>
+      <textarea id="actionInput" placeholder="Delegate, dump, or do it differently..."></textarea>
+      <div class="action-hint">How could you reclaim this energy? Say no, hand it off, change how you do it?</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="btnCancel">Cancel</button>
+      <button class="btn btn-save" id="btnSave">Save</button>
+    </div>
+    <button class="btn-clear" id="btnClear" style="display:none">Clear this slot</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  // --- Constants ---
+  const HOURS = [];
+  for (let h = 6; h <= 21; h++) HOURS.push(h); // 6am - 9pm
+
+  const STORAGE_KEY = 'energy_audit_data';
+
+  // --- State ---
+  let currentDate = todayStr();
+  let editingHour = null;
+  let selectedEnergy = null;
+
+  // --- Helpers ---
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${days[date.getDay()]}, ${months[date.getMonth()]} ${d}`;
+  }
+
+  function formatHour(h) {
+    if (h === 0) return '12 AM';
+    if (h < 12) return h + ' AM';
+    if (h === 12) return '12 PM';
+    return (h - 12) + ' PM';
+  }
+
+  function shiftDate(dateStr, delta) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d + delta);
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  }
+
+  // --- Storage ---
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+    catch { return {}; }
+  }
+
+  function saveAll(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function getDay(dateStr) {
+    const all = loadAll();
+    return all[dateStr] || {};
+  }
+
+  function setSlot(dateStr, hour, entry) {
+    const all = loadAll();
+    if (!all[dateStr]) all[dateStr] = {};
+    if (entry) all[dateStr][hour] = entry;
+    else delete all[dateStr][hour];
+    saveAll(all);
+  }
+
+  // --- Render ---
+  function renderDateLabel() {
+    const el = document.getElementById('dateLabel');
+    const isToday = currentDate === todayStr();
+    el.innerHTML = isToday
+      ? `<span class="today-badge">Today</span> · ${formatDate(currentDate)}`
+      : formatDate(currentDate);
+    // hide next button if on today
+    document.getElementById('nextDay').style.visibility =
+      currentDate >= todayStr() ? 'hidden' : 'visible';
+  }
+
+  function renderTimeline() {
+    const dayData = getDay(currentDate);
+    const container = document.getElementById('timeline');
+    container.innerHTML = '';
+
+    HOURS.forEach(h => {
+      const entry = dayData[h];
+      const slot = document.createElement('div');
+      slot.className = 'slot' + (entry ? ` energy-${entry.energy}` : '');
+      slot.innerHTML = `
+        <div class="slot-time">${formatHour(h)}</div>
+        <div class="slot-content">
+          ${entry
+            ? `<div class="slot-task">${esc(entry.task)}</div>
+               ${entry.action ? `<div class="slot-action">→ ${esc(entry.action)}</div>` : ''}`
+            : `<div class="slot-empty">Tap to log</div>`}
+        </div>
+        <div class="slot-energy">${entry ? energyIcon(entry.energy) : ''}</div>
+      `;
+      slot.addEventListener('click', () => openModal(h));
+      container.appendChild(slot);
+    });
+  }
+
+  function renderSummaryBar() {
+    const dayData = getDay(currentDate);
+    const counts = { up: 0, neutral: 0, down: 0 };
+    Object.values(dayData).forEach(e => { if (counts[e.energy] !== undefined) counts[e.energy]++; });
+    const total = counts.up + counts.neutral + counts.down;
+
+    const bar = document.getElementById('summaryBar');
+    if (total === 0) {
+      bar.innerHTML = '';
+      return;
+    }
+    bar.innerHTML = `
+      <div class="summary-chip up"><span class="dot"></span>${counts.up} up</div>
+      <div class="summary-chip neutral"><span class="dot"></span>${counts.neutral} neutral</div>
+      <div class="summary-chip down"><span class="dot"></span>${counts.down} down</div>
+    `;
+  }
+
+  function renderSummary() {
+    const dayData = getDay(currentDate);
+    const counts = { up: 0, neutral: 0, down: 0 };
+    Object.values(dayData).forEach(e => { if (counts[e.energy] !== undefined) counts[e.energy]++; });
+    const max = Math.max(counts.up, counts.neutral, counts.down, 1);
+
+    // Bar chart
+    const chart = document.getElementById('barChart');
+    chart.innerHTML = ['up','neutral','down'].map(key => {
+      const h = Math.round((counts[key] / max) * 100);
+      const cls = key === 'neutral' ? 'neutral-bar' : key;
+      const label = key.charAt(0).toUpperCase() + key.slice(1);
+      return `<div class="bar-group">
+        <div class="bar-count">${counts[key]}</div>
+        <div class="bar ${cls}" style="height:${Math.max(h, 4)}%"></div>
+        <div class="bar-label">${label}</div>
+      </div>`;
+    }).join('');
+
+    // Action list
+    const list = document.getElementById('actionList');
+    const downEntries = [];
+    HOURS.forEach(h => {
+      const e = dayData[h];
+      if (e && e.energy === 'down') downEntries.push({ hour: h, ...e });
+    });
+
+    if (downEntries.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">✦</div>
+        No draining hours logged yet.
+      </div>`;
+    } else {
+      list.innerHTML = downEntries.map(d => `
+        <li class="action-item">
+          <div class="action-item-time">${formatHour(d.hour)}</div>
+          <div class="action-item-task">${esc(d.task)}</div>
+          ${d.action ? `<div class="action-item-step">→ ${esc(d.action)}</div>` : ''}
+        </li>
+      `).join('');
+    }
+  }
+
+  function energyIcon(energy) {
+    if (energy === 'up') return '↑';
+    if (energy === 'neutral') return '→';
+    return '↓';
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderAll() {
+    renderDateLabel();
+    renderTimeline();
+    renderSummaryBar();
+    renderSummary();
+  }
+
+  // --- Modal ---
+  function openModal(hour) {
+    editingHour = hour;
+    const entry = getDay(currentDate)[hour];
+
+    document.getElementById('modalTime').textContent = formatHour(hour);
+    document.getElementById('taskInput').value = entry ? entry.task : '';
+    document.getElementById('actionInput').value = entry ? (entry.action || '') : '';
+
+    // Reset energy selection
+    selectedEnergy = entry ? entry.energy : null;
+    document.querySelectorAll('.energy-btn').forEach(b => {
+      b.className = 'energy-btn' + (selectedEnergy === b.dataset.energy ? ` selected-${b.dataset.energy}` : '');
+    });
+
+    // Show/hide action step
+    const actionSection = document.getElementById('actionStepSection');
+    actionSection.className = 'action-step-section' + (selectedEnergy === 'down' ? ' visible' : '');
+
+    // Show/hide clear button
+    document.getElementById('btnClear').style.display = entry ? 'block' : 'none';
+
+    document.getElementById('modalOverlay').classList.add('open');
+
+    // Focus the task input after animation
+    setTimeout(() => document.getElementById('taskInput').focus(), 300);
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingHour = null;
+    selectedEnergy = null;
+  }
+
+  function saveEntry() {
+    const task = document.getElementById('taskInput').value.trim();
+    if (!task || !selectedEnergy) return;
+
+    const entry = {
+      task,
+      energy: selectedEnergy,
+      action: selectedEnergy === 'down' ? document.getElementById('actionInput').value.trim() : ''
+    };
+
+    setSlot(currentDate, editingHour, entry);
+    closeModal();
+    renderAll();
+  }
+
+  function clearEntry() {
+    setSlot(currentDate, editingHour, null);
+    closeModal();
+    renderAll();
+  }
+
+  // --- Events ---
+  document.getElementById('prevDay').addEventListener('click', () => {
+    currentDate = shiftDate(currentDate, -1);
+    renderAll();
+  });
+
+  document.getElementById('nextDay').addEventListener('click', () => {
+    if (currentDate < todayStr()) {
+      currentDate = shiftDate(currentDate, 1);
+      renderAll();
+    }
+  });
+
+  document.getElementById('energyPicker').addEventListener('click', (e) => {
+    const btn = e.target.closest('.energy-btn');
+    if (!btn) return;
+    selectedEnergy = btn.dataset.energy;
+    document.querySelectorAll('.energy-btn').forEach(b => {
+      b.className = 'energy-btn' + (selectedEnergy === b.dataset.energy ? ` selected-${b.dataset.energy}` : '');
+    });
+    // Show action step section if energy is down
+    const actionSection = document.getElementById('actionStepSection');
+    actionSection.className = 'action-step-section' + (selectedEnergy === 'down' ? ' visible' : '');
+  });
+
+  document.getElementById('btnSave').addEventListener('click', saveEntry);
+  document.getElementById('btnCancel').addEventListener('click', closeModal);
+  document.getElementById('btnClear').addEventListener('click', clearEntry);
+
+  // Close modal on overlay tap
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  // Tab navigation
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.page).classList.add('active');
+      if (tab.dataset.page === 'summaryPage') renderSummary();
+    });
+  });
+
+  // --- Service Worker ---
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  // --- Init ---
+  renderAll();
+})();
+</script>
+</body>
+</html>
